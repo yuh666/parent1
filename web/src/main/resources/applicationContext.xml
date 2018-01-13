@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:jpa="http://www.springframework.org/schema/data/jpa" xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+		http://www.springframework.org/schema/data/jpa 
+		http://www.springframework.org/schema/data/jpa/spring-jpa.xsd">
+
+
+    <!-- spring实例化service -->
+	<context:component-scan base-package="org.laotie.activiti.service"/>
+
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+        <property name="targetClass" value="org.springframework.util.Log4jConfigurer"/>
+        <property name="targetMethod" value="initLogging"/>
+        <property name="arguments">
+            <list>
+                <value>classpath:log4j.properties</value>
+            </list>
+        </property>
+    </bean>
+    <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>classpath:db.properties</value>
+            </list>
+        </property>
+    </bean>
+
+    <!-- 1.dataSource-->
+	<!-- 配置数据源 -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="url" value="${jdbc.url}" />
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	
+	<bean id="entityManagerFactory"
+		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="packagesToScan" value="org.laotie.activiti.entity" />
+		<property name="persistenceProvider">
+			<bean class="org.hibernate.jpa.HibernatePersistenceProvider" />
+		</property>
+		<!--JPA的供应商适配器-->
+		<property name="jpaVendorAdapter">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+				<property name="generateDdl" value="false" />
+				<property name="database" value="MYSQL" />
+				<property name="databasePlatform" value="org.hibernate.dialect.MySQL5Dialect" />
+				<property name="showSql" value="true" />
+			</bean>
+		</property>
+		<property name="jpaDialect">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaDialect" />
+		</property>
+		<property name="jpaPropertyMap">
+			<map>
+				<entry key="hibernate.query.substitutions" value="true 1, false 0" />
+				<entry key="hibernate.default_batch_fetch_size" value="16" />
+				<entry key="hibernate.max_fetch_depth" value="2" />
+				<entry key="hibernate.enable_lazy_load_no_trans" value="true"></entry>
+				<entry key="hibernate.generate_statistics" value="true" />
+				<entry key="hibernate.bytecode.use_reflection_optimizer" value="true" />
+				<entry key="hibernate.cache.use_second_level_cache" value="false" />
+				<entry key="hibernate.cache.use_query_cache" value="false" />
+			</map>
+		</property>
+	</bean>
+	
+	<!-- JdbcTemplate配置 -->
+	<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+	     <property name="dataSource" ref="dataSource"></property>
+	</bean>
+	
+	<!-- 告诉spring生成代理子类时，采用cglib方式生成 -->
+	<aop:aspectj-autoproxy proxy-target-class="true" />
+	
+	<!-- 3.事务管理器-->
+	<!-- JPA事务管理器  -->
+	<bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory" ref="entityManagerFactory" />
+	</bean>
+	
+	<!-- 整合spring data jpa-->
+	<jpa:repositories base-package="org.laotie.activiti.dao"
+		transaction-manager-ref="transactionManager"
+		entity-manager-factory-ref="entityManagerFactory">
+	</jpa:repositories>
+
+	<!-- Jpa 事务管理器  -->
+	<bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory" ref="entityManagerFactory"/>
+	</bean>
+
+	<!-- 开启注解事务 -->
+	<tx:annotation-driven transaction-manager="transactionManager" proxy-target-class="true" />
+
+		
+	<!--activiti-->
+    <!-- spring负责创建流程引擎的配置文件 -->
+    <bean id="processEngineConfiguration" class="org.activiti.spring.SpringProcessEngineConfiguration">
+        <!-- 数据源 -->
+        <property name="dataSource" ref="dataSource" />
+        <!-- 配置事务管理器，统一事务 -->
+        <property name="transactionManager" ref="transactionManager" />
+        <!-- 设置建表策略，如果没有表，自动创建表 -->
+        <property name="databaseSchemaUpdate" value="true" />
+    </bean>
+    <!-- 创建流程引擎对象 -->
+    <bean id="processEngine" class="org.activiti.spring.ProcessEngineFactoryBean">
+        <property name="processEngineConfiguration" ref="processEngineConfiguration" />
+    </bean>
+
+    <!-- 由流程引擎对象，提供的方法，创建项目中使用的Activiti工作流的Service -->
+    <bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService" />
+    <bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService" />
+    <bean id="taskService" factory-bean="processEngine" factory-method="getTaskService" />
+    <bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService" />
+    <bean id="formService" factory-bean="processEngine" factory-method="getFormService" />
+
+</beans>
