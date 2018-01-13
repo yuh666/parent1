@@ -18,6 +18,10 @@
 
     <properties>
         <jdk.version>1.8</jdk.version>
+        <spring.version>4.1.6.RELEASE</spring.version>
+        <junit.version>4.12</junit.version>
+        <hibernate.version>5.2.12.Final</hibernate.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
