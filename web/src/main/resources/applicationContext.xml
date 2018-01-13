@@ -97,14 +97,9 @@
                       entity-manager-factory-ref="entityManagerFactory">
     </jpa:repositories>
 
-    <!-- Jpa 事务管理器  -->
-    <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
-        <property name="entityManagerFactory" ref="entityManagerFactory"/>
-    </bean>
 
     <!-- 开启注解事务 -->
     <tx:annotation-driven transaction-manager="transactionManager" proxy-target-class="true"/>
-
 
     <!--activiti-->
     <!-- spring负责创建流程引擎的配置文件 -->
@@ -127,5 +122,4 @@
     <bean id="taskService" factory-bean="processEngine" factory-method="getTaskService"/>
     <bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService"/>
     <bean id="formService" factory-bean="processEngine" factory-method="getFormService"/>
-
 </beans>
